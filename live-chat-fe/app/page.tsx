@@ -20,11 +20,13 @@ export default function Home() {
   const usernameRef = useRef("You");
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:3001/ws");//ws://localhost:3001/ws
+    const ws = new WebSocket(process.env.NEXT_PUBLIC_BE_URL!);
+    alert(process.env.NEXT_PUBLIC_BE_URL)
     wsRef.current = ws;
 
     ws.onopen = () => {
       console.log("✅ Connected to server");
+      alert("connected");
     };
 
     ws.onmessage = (e) => {
