@@ -79,7 +79,7 @@ const server = Bun.serve({
   websocket: {
     open(ws: ServerWebSocket<WSData>) {
       const id = crypto.randomUUID()
-      const username = `user-${id.slice(0, 4)}`
+      const username = `U-${id.slice(0, 4)}`
       ws.data = { id }
       users.set(id, { id, username, ws })
       console.log("✅ User connected:", id, username)
