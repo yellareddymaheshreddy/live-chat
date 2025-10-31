@@ -1,7 +1,5 @@
-// This file should be run with Bun: `bun run server/broadcast.ts`
 /// <reference types="bun-types" />
 
-// import { Bun } from "bun"
 import type { ServerWebSocket } from "bun"
 
 type WSData = {
