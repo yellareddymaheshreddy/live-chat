@@ -78,6 +78,8 @@ export default function ChatRoom() {
   const usernameRef = useRef("You")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout>(null)
+  const liveTypingDebounceRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSentTextRef = useRef("")
   const { theme, setTheme } = useTheme()
 
   const scrollToBottom = () => {
@@ -153,23 +155,61 @@ export default function ChatRoom() {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current)
       }
+      if (liveTypingDebounceRef.current) {
+        clearTimeout(liveTypingDebounceRef.current)
+      }
       ws.close()
     }
   }, [room])
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value)
-    wsRef.current?.send(
-      JSON.stringify({
-        type: "live_typing",
-        content: e.target.value,
-        room,
-      }),
-    )
+    const newValue = e.target.value
+    setInput(newValue)
+
+    // Clear existing debounce timeout
+    if (liveTypingDebounceRef.current) {
+      clearTimeout(liveTypingDebounceRef.current)
+    }
+
+    // Send immediately if input becomes empty to clear typing indicator
+    if (newValue.trim() === "") {
+      if (lastSentTextRef.current !== "") {
+        wsRef.current?.send(
+          JSON.stringify({
+            type: "live_typing",
+            content: "",
+            room,
+          }),
+        )
+        lastSentTextRef.current = ""
+      }
+      return
+    }
+
+    // Debounce non-empty updates
+    liveTypingDebounceRef.current = setTimeout(() => {
+      // Only send if text has actually changed
+      if (newValue !== lastSentTextRef.current) {
+        wsRef.current?.send(
+          JSON.stringify({
+            type: "live_typing",
+            content: newValue,
+            room,
+          }),
+        )
+        lastSentTextRef.current = newValue
+      }
+    }, 250)
   }
 
   const handleSend = () => {
     if (!input.trim()) return
+
+    // Clear any pending debounced live_typing updates
+    if (liveTypingDebounceRef.current) {
+      clearTimeout(liveTypingDebounceRef.current)
+    }
+
     const message = {
       type: "message" as const,
       from: usernameRef.current,
@@ -181,6 +221,7 @@ export default function ChatRoom() {
     wsRef.current?.send(JSON.stringify(message))
     setMessages((prev) => [...prev, message])
     setInput("")
+    lastSentTextRef.current = ""
     setTypingUsers((prev) => {
       const newSet = new Set(prev)
       newSet.delete(usernameRef.current)
